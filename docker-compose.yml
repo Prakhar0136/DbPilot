@@ -1,0 +1,45 @@
+version: "3.8"
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: dbpilot_postgres
+    restart: always
+    environment:
+      POSTGRES_USER: dbpilot_user
+      POSTGRES_PASSWORD: dbpilot_password
+      POSTGRES_DB: dbpilot_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/seed.sql:/docker-entrypoint-initdb.d/seed.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dbpilot_user -d dbpilot_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: dbpilot_backend
+    restart: always
+    ports:
+      - "8000:8000"
+    environment:
+      POSTGRES_HOST: db
+      POSTGRES_USER: dbpilot_user
+      POSTGRES_PASSWORD: dbpilot_password
+      POSTGRES_DB: dbpilot_db
+      POSTGRES_PORT: 5432
+      APP_ENV: development
+    volumes:
+      - ./backend/app:/app/app
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
